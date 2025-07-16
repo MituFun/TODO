@@ -16,6 +16,7 @@ interface Task {
   createdDate: string
   lastUpdatedDate?: string // 添加这个字段
   startValue?: number
+  includeInTotal?: boolean
 }
 
 interface EditTaskDialogProps {
@@ -31,6 +32,7 @@ export function EditTaskDialog({ task, open, onOpenChange, onSave }: EditTaskDia
   const [current, setCurrent] = useState(0)
   const [defaultIncrement, setDefaultIncrement] = useState(1)
   const [startValue, setStartValue] = useState(0)
+  const [includeInTotal, setIncludeInTotal] = useState(true)
 
   // 当对话框打开时，初始化表单数据
   useEffect(() => {
@@ -38,8 +40,9 @@ export function EditTaskDialog({ task, open, onOpenChange, onSave }: EditTaskDia
       setName(task.name)
       setTotal(task.total)
       setCurrent(task.current)
-      setStartValue(task.startValue || 0) // 兼容老数据
+      setStartValue(task.startValue || 0)
       setDefaultIncrement(task.defaultIncrement)
+      setIncludeInTotal(task.includeInTotal !== false) // 兼容老数据，默认为true
     }
   }, [task, open])
 
@@ -56,6 +59,7 @@ export function EditTaskDialog({ task, open, onOpenChange, onSave }: EditTaskDia
       current: Math.max(startValue, current), // 确保当前值不小于起始值
       startValue: Math.max(0, startValue),
       defaultIncrement: Math.max(1, defaultIncrement),
+      includeInTotal, // 添加这一行
       lastUpdatedDate: progressChanged ? today : task.lastUpdatedDate,
     }
 
@@ -141,6 +145,26 @@ export function EditTaskDialog({ task, open, onOpenChange, onSave }: EditTaskDia
                     {field.note && <p className="text-xs text-muted-foreground">{field.note}</p>}
                   </motion.div>
                 ))}
+                <motion.div
+                  className="grid gap-2"
+                  initial={{ opacity: 0, x: -20 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  transition={{ duration: 0.3, delay: 0.5 }}
+                >
+                  <div className="flex items-center space-x-2">
+                    <input
+                      type="checkbox"
+                      id="edit-include-in-total"
+                      checked={includeInTotal}
+                      onChange={(e) => setIncludeInTotal(e.target.checked)}
+                      className="rounded border-gray-300"
+                    />
+                    <Label htmlFor="edit-include-in-total" className="text-sm font-medium">
+                      计入总进度
+                    </Label>
+                  </div>
+                  <p className="text-xs text-muted-foreground">取消勾选后，此任务不会影响总体进度计算</p>
+                </motion.div>
               </div>
               <DialogFooter>
                 <motion.div whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}>

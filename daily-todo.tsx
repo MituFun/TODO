@@ -20,10 +20,11 @@ interface Task {
   name: string
   total: number
   current: number
-  startValue?: number // 添加起始值字段，可选以兼容老数据
+  startValue?: number
   defaultIncrement: number
   createdDate: string
-  lastUpdatedDate?: string // 添加这个字段
+  lastUpdatedDate?: string
+  includeInTotal?: boolean // 添加是否计入总进度字段，默认true兼容老数据
 }
 
 interface ParticleState {
@@ -45,6 +46,7 @@ export default function Component() {
   const [editDialogOpen, setEditDialogOpen] = useState(false)
   const [particleCount, setParticleCount] = useState(30)
   const [newTaskStartValue, setNewTaskStartValue] = useState(0)
+  const [newTaskIncludeInTotal, setNewTaskIncludeInTotal] = useState(true)
 
   // 加载数据
   useEffect(() => {
@@ -95,9 +97,10 @@ export default function Component() {
       id: Date.now().toString(),
       name: newTaskName.trim(),
       total: newTaskTotal,
-      current: newTaskStartValue, // 使用起始值作为初始current值
-      startValue: newTaskStartValue, // 添加起始值字段
+      current: newTaskStartValue,
+      startValue: newTaskStartValue,
       defaultIncrement: newTaskIncrement,
+      includeInTotal: newTaskIncludeInTotal, // 添加这一行
       createdDate: new Date().toDateString(),
     }
 
@@ -106,8 +109,9 @@ export default function Component() {
 
     setNewTaskName("")
     setNewTaskTotal(100)
-    setNewTaskStartValue(0) // 重置起始值
+    setNewTaskStartValue(0)
     setNewTaskIncrement(1)
+    setNewTaskIncludeInTotal(true) // 重置为默认值
 
     // 添加成功后跳转到作业列表
     setCurrentView("tasks")
@@ -197,10 +201,11 @@ export default function Component() {
 
   // 计算总进度
   const getTotalProgress = () => {
-    if (tasks.length === 0) return { current: 0, total: 0, percentage: 0 }
+    const includedTasks = tasks.filter((task) => task.includeInTotal !== false) // 兼容老数据
+    if (includedTasks.length === 0) return { current: 0, total: 0, percentage: 0 }
 
-    const totalCurrent = tasks.reduce((sum, task) => sum + (task.current - (task.startValue || 0)), 0)
-    const totalMax = tasks.reduce((sum, task) => sum + (task.total - (task.startValue || 0)), 0)
+    const totalCurrent = includedTasks.reduce((sum, task) => sum + (task.current - (task.startValue || 0)), 0)
+    const totalMax = includedTasks.reduce((sum, task) => sum + (task.total - (task.startValue || 0)), 0)
     const percentage = totalMax > 0 ? Math.round((totalCurrent / totalMax) * 100) : 0
 
     return { current: totalCurrent, total: totalMax, percentage }
@@ -488,6 +493,15 @@ export default function Component() {
                                 >
                                   {task.name}
                                 </motion.h3>
+                                {task.includeInTotal === false && (
+                                  <motion.span
+                                    initial={{ opacity: 0, scale: 0, x: -20 }}
+                                    animate={{ opacity: 1, scale: 1, x: 0 }}
+                                    className="inline-flex items-center gap-1 px-2 py-1 rounded-full bg-gray-100 text-gray-600 text-xs font-medium"
+                                  >
+                                    不计入总进度
+                                  </motion.span>
+                                )}
                                 <AnimatePresence>
                                   {isCompletedToday(task) && (
                                     <motion.span
@@ -679,68 +693,88 @@ export default function Component() {
               </CardHeader>
               <CardContent className="space-y-6">
                 <motion.div
-                  className="grid grid-cols-1 md:grid-cols-3 gap-4"
+                  className="space-y-4"
                   initial={{ opacity: 0, y: 20 }}
                   animate={{ opacity: 1, y: 0 }}
                   transition={{ duration: 0.4, delay: 0.2 }}
                 >
-                  {[
-                    {
-                      id: "task-name",
-                      label: "作业名称",
-                      type: "text",
-                      value: newTaskName,
-                      onChange: setNewTaskName,
-                      placeholder: "输入作业名称",
-                    },
-                    {
-                      id: "task-total",
-                      label: "总数量",
-                      type: "number",
-                      value: newTaskTotal,
-                      onChange: setNewTaskTotal,
-                      min: "1",
-                    },
-                    {
-                      id: "task-increment",
-                      label: "默认增量",
-                      type: "number",
-                      value: newTaskIncrement,
-                      onChange: setNewTaskIncrement,
-                      min: "1",
-                    },
-                    {
-                      id: "task-start-value",
-                      label: "起始值",
-                      type: "number",
-                      value: newTaskStartValue,
-                      onChange: setNewTaskStartValue,
-                      min: "0",
-                    },
-                  ].map((field, index) => (
-                    <motion.div
-                      key={field.id}
-                      initial={{ opacity: 0, x: -20 }}
-                      animate={{ opacity: 1, x: 0 }}
-                      transition={{ duration: 0.3, delay: 0.3 + index * 0.1 }}
-                    >
-                      <Label htmlFor={field.id}>{field.label}</Label>
-                      <motion.div whileFocus={{ scale: 1.02 }} transition={{ duration: 0.2 }}>
-                        <Input
-                          id={field.id}
-                          type={field.type}
-                          min={field.min}
-                          placeholder={field.placeholder}
-                          value={field.value}
-                          onChange={(e) =>
-                            field.onChange(field.type === "number" ? Number(e.target.value) : e.target.value)
-                          }
-                          onKeyDown={(e) => e.key === "Enter" && addTask()}
-                          className="transition-all duration-300 focus:shadow-md"
-                        />
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    {[
+                      {
+                        id: "task-name",
+                        label: "作业名称",
+                        type: "text",
+                        value: newTaskName,
+                        onChange: setNewTaskName,
+                        placeholder: "输入作业名称",
+                      },
+                      {
+                        id: "task-total",
+                        label: "总数量",
+                        type: "number",
+                        value: newTaskTotal,
+                        onChange: setNewTaskTotal,
+                        min: "1",
+                      },
+                      {
+                        id: "task-start-value",
+                        label: "起始值",
+                        type: "number",
+                        value: newTaskStartValue,
+                        onChange: setNewTaskStartValue,
+                        min: "0",
+                      },
+                      {
+                        id: "task-increment",
+                        label: "默认增量",
+                        type: "number",
+                        value: newTaskIncrement,
+                        onChange: setNewTaskIncrement,
+                        min: "1",
+                      },
+                    ].map((field, index) => (
+                      <motion.div
+                        key={field.id}
+                        initial={{ opacity: 0, x: -20 }}
+                        animate={{ opacity: 1, x: 0 }}
+                        transition={{ duration: 0.3, delay: 0.3 + index * 0.1 }}
+                      >
+                        <Label htmlFor={field.id}>{field.label}</Label>
+                        <motion.div whileFocus={{ scale: 1.02 }} transition={{ duration: 0.2 }}>
+                          <Input
+                            id={field.id}
+                            type={field.type}
+                            min={field.min}
+                            placeholder={field.placeholder}
+                            value={field.value}
+                            onChange={(e) =>
+                              field.onChange(field.type === "number" ? Number(e.target.value) : e.target.value)
+                            }
+                            onKeyDown={(e) => e.key === "Enter" && addTask()}
+                            className="transition-all duration-300 focus:shadow-md"
+                          />
+                        </motion.div>
                       </motion.div>
-                    </motion.div>
-                  ))}
+                    ))}
+                  </div>
+                  <motion.div
+                    className="flex items-center justify-center space-x-2 p-4 bg-gray-50 rounded-lg"
+                    initial={{ opacity: 0, x: -20 }}
+                    animate={{ opacity: 1, x: 0 }}
+                    transition={{ duration: 0.3, delay: 0.7 }}
+                  >
+                    <input
+                      type="checkbox"
+                      id="include-in-total"
+                      checked={newTaskIncludeInTotal}
+                      onChange={(e) => setNewTaskIncludeInTotal(e.target.checked)}
+                      className="rounded border-gray-300 w-4 h-4"
+                    />
+                    <Label htmlFor="include-in-total" className="text-sm font-medium">
+                      计入总进度
+                    </Label>
+                    <span className="text-xs text-muted-foreground">（取消勾选后，此任务不会影响总体进度计算）</span>
+                  </motion.div>
                 </motion.div>
 
                 <motion.div
@@ -822,3 +856,4 @@ export default function Component() {
     </div>
   )
 }
+
