@@ -20,6 +20,7 @@ interface Task {
   name: string
   total: number
   current: number
+  startValue?: number // 添加起始值字段，可选以兼容老数据
   defaultIncrement: number
   createdDate: string
   lastUpdatedDate?: string // 添加这个字段
@@ -43,6 +44,7 @@ export default function Component() {
   const [editingTask, setEditingTask] = useState<Task | null>(null)
   const [editDialogOpen, setEditDialogOpen] = useState(false)
   const [particleCount, setParticleCount] = useState(30)
+  const [newTaskStartValue, setNewTaskStartValue] = useState(0)
 
   // 加载数据
   useEffect(() => {
@@ -93,7 +95,8 @@ export default function Component() {
       id: Date.now().toString(),
       name: newTaskName.trim(),
       total: newTaskTotal,
-      current: 0,
+      current: newTaskStartValue, // 使用起始值作为初始current值
+      startValue: newTaskStartValue, // 添加起始值字段
       defaultIncrement: newTaskIncrement,
       createdDate: new Date().toDateString(),
     }
@@ -103,6 +106,7 @@ export default function Component() {
 
     setNewTaskName("")
     setNewTaskTotal(100)
+    setNewTaskStartValue(0) // 重置起始值
     setNewTaskIncrement(1)
 
     // 添加成功后跳转到作业列表
@@ -185,17 +189,19 @@ export default function Component() {
   }
 
   // 计算进度百分比
-  const getProgressPercentage = (current: number, total: number) => {
-    return Math.round((current / total) * 100)
+  const getProgressPercentage = (current: number, total: number, startValue = 0) => {
+    const actualProgress = current - startValue
+    const actualTotal = total - startValue
+    return actualTotal > 0 ? Math.round((actualProgress / actualTotal) * 100) : 0
   }
 
   // 计算总进度
   const getTotalProgress = () => {
     if (tasks.length === 0) return { current: 0, total: 0, percentage: 0 }
 
-    const totalCurrent = tasks.reduce((sum, task) => sum + task.current, 0)
-    const totalMax = tasks.reduce((sum, task) => sum + task.total, 0)
-    const percentage = Math.round((totalCurrent / totalMax) * 100)
+    const totalCurrent = tasks.reduce((sum, task) => sum + (task.current - (task.startValue || 0)), 0)
+    const totalMax = tasks.reduce((sum, task) => sum + (task.total - (task.startValue || 0)), 0)
+    const percentage = totalMax > 0 ? Math.round((totalCurrent / totalMax) * 100) : 0
 
     return { current: totalCurrent, total: totalMax, percentage }
   }
@@ -223,7 +229,7 @@ export default function Component() {
           animate={{ scale: 1 }}
           transition={{ duration: 0.5, delay: 0.2 }}
         >
-          To-Do List
+          TO-DO LIST
         </motion.h1>
         <motion.p
           className="text-muted-foreground"
@@ -531,14 +537,17 @@ export default function Component() {
                               <div className="flex justify-between text-sm">
                                 <span>
                                   进度: {task.current} / {task.total}
+                                  {(task.startValue || 0) > 0 && (
+                                    <span className="text-muted-foreground ml-1">(起始: {task.startValue})</span>
+                                  )}
                                 </span>
                                 <motion.span
-                                  key={getProgressPercentage(task.current, task.total)}
+                                  key={getProgressPercentage(task.current, task.total, task.startValue)}
                                   initial={{ scale: 1.2, opacity: 0 }}
                                   animate={{ scale: 1, opacity: 1 }}
                                   transition={{ duration: 0.3 }}
                                 >
-                                  {getProgressPercentage(task.current, task.total)}%
+                                  {getProgressPercentage(task.current, task.total, task.startValue)}%
                                 </motion.span>
                               </div>
                               <motion.div
@@ -547,7 +556,10 @@ export default function Component() {
                                 transition={{ duration: 0.8, ease: "easeOut" }}
                                 style={{ transformOrigin: "left" }}
                               >
-                                <Progress value={getProgressPercentage(task.current, task.total)} className="h-3" />
+                                <Progress
+                                  value={getProgressPercentage(task.current, task.total, task.startValue)}
+                                  className="h-3"
+                                />
                               </motion.div>
                             </div>
 
@@ -697,6 +709,14 @@ export default function Component() {
                       onChange: setNewTaskIncrement,
                       min: "1",
                     },
+                    {
+                      id: "task-start-value",
+                      label: "起始值",
+                      type: "number",
+                      value: newTaskStartValue,
+                      onChange: setNewTaskStartValue,
+                      min: "0",
+                    },
                   ].map((field, index) => (
                     <motion.div
                       key={field.id}
@@ -747,9 +767,7 @@ export default function Component() {
                       whileHover={{ scale: 1.05, y: -2 }}
                       whileTap={{ scale: 0.98 }}
                       transition={{ type: "spring", stiffness: 400, damping: 25 }}
-                    >
-                      
-                    </motion.div>
+                    ></motion.div>
                   </div>
                 </motion.div>
 
@@ -773,6 +791,9 @@ export default function Component() {
                     </li>
                     <li>
                       • <strong>修改进度</strong>：可以在编辑作业时直接修改当前进度
+                    </li>
+                    <li>
+                      • <strong>起始值</strong>：设置作业的起始进度（如已完成的部分）
                     </li>
                   </ul>
                 </motion.div>

@@ -15,6 +15,7 @@ interface Task {
   defaultIncrement: number
   createdDate: string
   lastUpdatedDate?: string // 添加这个字段
+  startValue?: number
 }
 
 interface EditTaskDialogProps {
@@ -29,6 +30,7 @@ export function EditTaskDialog({ task, open, onOpenChange, onSave }: EditTaskDia
   const [total, setTotal] = useState(100)
   const [current, setCurrent] = useState(0)
   const [defaultIncrement, setDefaultIncrement] = useState(1)
+  const [startValue, setStartValue] = useState(0)
 
   // 当对话框打开时，初始化表单数据
   useEffect(() => {
@@ -36,6 +38,7 @@ export function EditTaskDialog({ task, open, onOpenChange, onSave }: EditTaskDia
       setName(task.name)
       setTotal(task.total)
       setCurrent(task.current)
+      setStartValue(task.startValue || 0) // 兼容老数据
       setDefaultIncrement(task.defaultIncrement)
     }
   }, [task, open])
@@ -49,10 +52,11 @@ export function EditTaskDialog({ task, open, onOpenChange, onSave }: EditTaskDia
     const updatedTask: Task = {
       ...task,
       name: name.trim(),
-      total: Math.max(1, total),
-      current: Math.max(0, current), // 确保进度不小于0
+      total: Math.max(startValue + 1, total), // 确保总数大于起始值
+      current: Math.max(startValue, current), // 确保当前值不小于起始值
+      startValue: Math.max(0, startValue),
       defaultIncrement: Math.max(1, defaultIncrement),
-      lastUpdatedDate: progressChanged ? today : task.lastUpdatedDate, // 如果进度改变了就更新日期
+      lastUpdatedDate: progressChanged ? today : task.lastUpdatedDate,
     }
 
     onSave(updatedTask)
@@ -102,6 +106,15 @@ export function EditTaskDialog({ task, open, onOpenChange, onSave }: EditTaskDia
                     value: defaultIncrement,
                     onChange: setDefaultIncrement,
                     min: "1",
+                  },
+                  {
+                    id: "edit-start-value",
+                    label: "起始值",
+                    type: "number",
+                    value: startValue,
+                    onChange: setStartValue,
+                    min: "0",
+                    note: "设置作业的起始进度值",
                   },
                 ].map((field, index) => (
                   <motion.div
