@@ -139,6 +139,7 @@ export function SettingsPage({ onBack }: SettingsProps) {
         <Card className="hover:shadow-lg transition-all duration-300">
           <CardHeader>
             <CardTitle>数据管理</CardTitle>
+            <p className="text-xs text-muted-foreground">可以用来同步不同设备之间的任务进度</p>
           </CardHeader>
           <CardContent className="space-y-4">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
