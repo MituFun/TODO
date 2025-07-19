@@ -60,7 +60,7 @@ export function EditTaskDialog({ task, open, onOpenChange, onSave }: EditTaskDia
       startValue: Math.max(0, startValue),
       defaultIncrement: Math.max(1, defaultIncrement),
       includeInTotal, // 添加这一行
-      lastUpdatedDate: progressChanged ? today : task.lastUpdatedDate,
+      lastUpdatedDate: task.lastUpdatedDate,
     }
 
     onSave(updatedTask)
